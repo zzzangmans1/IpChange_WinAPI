@@ -39,16 +39,7 @@
     </ResourceCompile>
   </ItemGroup>
   <ItemGroup>
-    <Image Include="small.ico">
-      <Filter>리소스 파일</Filter>
-    </Image>
-    <Image Include="WindowsProject1.ico">
-      <Filter>리소스 파일</Filter>
-    </Image>
     <Image Include="free-icon-font-share-3917633.ico">
-      <Filter>리소스 파일</Filter>
-    </Image>
-    <Image Include="icon1.ico">
       <Filter>리소스 파일</Filter>
     </Image>
   </ItemGroup>
