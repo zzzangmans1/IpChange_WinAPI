@@ -6,3 +6,5 @@ IpChange_WinAPI
 ![image](https://github.com/user-attachments/assets/8622d4e9-2117-473a-b532-338475e69c6f)
 
 ![image](https://github.com/user-attachments/assets/05b904d9-ee15-4f2b-a061-b8c196970c59)
+
+![image](https://github.com/user-attachments/assets/41ca6e38-df5c-4772-80bc-92f3a4439401)
