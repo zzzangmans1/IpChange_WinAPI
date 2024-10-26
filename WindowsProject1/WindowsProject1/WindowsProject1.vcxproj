@@ -141,6 +141,8 @@
     <ResourceCompile Include="WindowsProject1.rc" />
   </ItemGroup>
   <ItemGroup>
+    <Image Include="free-icon-font-share-3917633.ico" />
+    <Image Include="icon1.ico" />
     <Image Include="small.ico" />
     <Image Include="WindowsProject1.ico" />
   </ItemGroup>
