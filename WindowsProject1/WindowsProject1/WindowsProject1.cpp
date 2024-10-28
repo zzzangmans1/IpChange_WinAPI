@@ -173,15 +173,19 @@ void getAdapterInfo(HWND hWnd, HWND hAdtpCmbBox) {
     if (pAdapterInfo == NULL) {
 
         MessageBox(hWnd, L"Error", _T("누른 버튼"), NULL);
-        
+        return;
     }
+
+
     // Make an initial call to GetAdaptersInfo to get
     // the necessary size into the ulOutBufLen variable
     if (GetAdaptersInfo(pAdapterInfo, &ulOutBufLen) == ERROR_BUFFER_OVERFLOW) {
         free(pAdapterInfo);
         pAdapterInfo = (IP_ADAPTER_INFO*)malloc(ulOutBufLen);
+        ZeroMemory(pAdapterInfo, ulOutBufLen); // 메모리 초기화
         if (pAdapterInfo == NULL) {
             MessageBox(hWnd, L"Error allocating memory needed to call GetAdaptersinfo", _T("누른 버튼"), NULL);
+            return;
         }
     }
 
@@ -189,20 +193,19 @@ void getAdapterInfo(HWND hWnd, HWND hAdtpCmbBox) {
         pAdapter = pAdapterInfo; 
 
         while (pAdapter) {
-            printf("\tComboIndex: \t%d\n", pAdapter->ComboIndex);
+            //printf("\tComboIndex: \t%d\n", pAdapter->ComboIndex);
 
-            printf("\tAdapter Name: \t%s\n", pAdapter->AdapterName);
-            printf("\tAdapter Desc: \t%s\n", pAdapter->Description);
-            printf("\tAdapter Addr: \t");
+            //printf("\tAdapter Name: \t%s\n", pAdapter->AdapterName);
+            //printf("\tAdapter Desc: \t%s\n", pAdapter->Description);
+            //printf("\tAdapter Addr: \t");
             for (i = 0; i < pAdapter->AddressLength; i++) {
                 if (i == (pAdapter->AddressLength - 1))
                     printf("%.2X\n", (int)pAdapter->Address[i]);
                 else
                     printf("%.2X-", (int)pAdapter->Address[i]);
             }
-            printf("\tIndex: \t%d\n", pAdapter->Index);
-            printf("\tType: \t");
-            
+            //printf("\tIndex: \t%d\n", pAdapter->Index);
+            //printf("\tType: \t");
             
             switch (pAdapter->Type) {
             case MIB_IF_TYPE_OTHER:
@@ -243,15 +246,15 @@ void getAdapterInfo(HWND hWnd, HWND hAdtpCmbBox) {
                 break;
             }
 
-            printf("\tIP Address: \t%s\n", pAdapter->IpAddressList.IpAddress.String);
-            printf("\tIP Mask: \t%s\n", pAdapter->IpAddressList.IpMask.String);
-            printf("\tGateway: \t%s\n", pAdapter->GatewayList.IpAddress.String);
-            printf("\t***\n");
+            //printf("\tIP Address: \t%s\n", pAdapter->IpAddressList.IpAddress.String);
+            //printf("\tIP Mask: \t%s\n", pAdapter->IpAddressList.IpMask.String);
+            //printf("\tGateway: \t%s\n", pAdapter->GatewayList.IpAddress.String);
+            //printf("\t***\n");
 
             if (pAdapter->DhcpEnabled) {
-                printf("\tDHCP Enabled: Yes\n");
-                printf("\t  DHCP Server: \t%s\n",
-                    pAdapter->DhcpServer.IpAddress.String);
+                //printf("\tDHCP Enabled: Yes\n");
+                //printf("\t  DHCP Server: \t%s\n",
+                  //  pAdapter->DhcpServer.IpAddress.String);
 
                 printf("\t  Lease Obtained: ");
                 /* Display local time */
@@ -301,8 +304,8 @@ void getAdapterInfo(HWND hWnd, HWND hAdtpCmbBox) {
     else {
         printf("GetAdaptersInfo failed with error: %d\n", dwRetVal);
     }
-   //if (pAdapterInfo)
-    ///    free(pAdapterInfo);
+  //if (pAdapterInfo)
+        //free(pAdapterInfo);
 
 }
 // IP 문자열 . 으로 나누기
@@ -470,7 +473,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
                     }
                     else if (pAdapterInfo2->Type == MIB_IF_TYPE_ETHERNET) {
-                        SendMessage(GetDlgItem(hWnd, IDC_INT_NAME), WM_SETTEXT, 0, (LPARAM)L"Ethernet");
+                        SendMessage(GetDlgItem(hWnd, IDC_INT_NAME), WM_SETTEXT, 0, (LPARAM)L"이더넷");
                     }
                 }
             }
@@ -505,8 +508,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 if (wcscmp(buffer, L"Wi-Fi") == 0) {
                     SetIpAddress(L"Wi-Fi", ipAddress, subnetMask, gateway);
                 }
-                else if (wcscmp(buffer, L"Ethernet") == 0) {
-                    SetIpAddress(L"Ethernet", ipAddress, subnetMask, gateway);
+                else if (wcscmp(buffer, L"이더넷") == 0) {
+                    SetIpAddress(L"이더넷", ipAddress, subnetMask, gateway);
                 }
                 else {
                     MessageBox(hWnd, L"설정된 인터페이스를 확인해주세요.", NULL, NULL);
@@ -519,10 +522,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                     // READONLY 상태를 토글
                     SetEditReadOnly(hWnd, !isReadOnly);
 
-                    MessageBox(hWnd, L"읽기 가능 상태로 변경되었습니다.", L"알림", MB_OK);
+                    MessageBox(hWnd, L"저장완료되었습니다.", L"알림", MB_OK);
 
                 }
 
+                Sleep(5000);
                 // 설정 변경된 것 새로고침
                 // 어댑터 정보 가져오기
                 getAdapterInfo(hWnd, hComboBox);
@@ -571,8 +575,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                     SetDhcpSw(buffer);
                 }
 
-                Sleep(100); // 필요한 경우 잠시 대기 
+                MessageBox(hWnd, L"DHCP로 설정되었습니다.", L"알림", MB_OK);
 
+                Sleep(5000);
                 // 설정 변경된 것 새로고침
                 getAdapterInfo(hWnd, hComboBox);
 
