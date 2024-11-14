@@ -39,6 +39,7 @@
 #define IDC_DHCP_TXT2                   4005
 #define IDC_INT_NAME                    4006
 #define IDC_DHCHSW_BUTTON               4007
+#define IDC_REFRESH_BUTTON               4008
 #define IDC_STATIC                      -1
 
 // Next default values for new objects

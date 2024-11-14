@@ -583,6 +583,15 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
                 InitializeControls(hWnd);
             }
+            if (LOWORD(wParam) == IDC_REFRESH_BUTTON) {
+                HWND hComboBox = GetDlgItem(hWnd, IDC_COMBOBOX);
+                // 설정 변경된 것 새로고침
+                // 어댑터 정보 가져오기
+                getAdapterInfo(hWnd, hComboBox);
+
+                // 추가 설정 초기화
+                InitializeControls(hWnd);
+            }
             // 입력한 값이 255를 넘지 않는지 체크
             if (HIWORD(wParam) == EN_CHANGE) {
                 int editControls[] = { IDC_IP1, IDC_IP2, IDC_IP3, IDC_IP4, IDC_SUBNET1, IDC_SUBNET2, IDC_SUBNET3, IDC_SUBNET4, IDC_GW1, IDC_GW2, IDC_GW3, IDC_GW4};
@@ -716,6 +725,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             230, 300, 50, 25, hWnd, (HMENU)IDC_APPLY_BUTTON, NULL, NULL);
         CreateWindowEx(0, L"BUTTON", L"DHCP Switching", WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON,
             300, 300, 150, 25, hWnd, (HMENU)IDC_DHCHSW_BUTTON, NULL, NULL);
+        CreateWindowEx(0, L"BUTTON", L"Refresh", WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON,
+            500, 300, 150, 25, hWnd, (HMENU)IDC_REFRESH_BUTTON, NULL, NULL);
         ShowWindow(GetDlgItem(hWnd, IDC_DHCHSW_BUTTON), SW_HIDE);   // DHCP 버튼 숨김
         break;
     }
