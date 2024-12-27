@@ -17,7 +17,10 @@ HWND hFocus = NULL;                             // 포커스 핸들 담을 전�
 
 // EDIT 같은 클래스들은 키 차단되어 있기 때문에 프로시저 생성
 WNDPROC OldEditProcs[NUM_EDIT_CONTROLS];                            // 원래 EDIT 컨트롤 프로시저 저장
+//WNDPROC OldComboBoxProc;                                            // COMBOBOX 컨트롤 프로시저 저장
+
 HWND hEditControls[NUM_EDIT_CONTROLS];  // EDIT 컨트롤 핸들 배열
+//HWND hComboBoxCtrl;
 
 PIP_ADAPTER_INFO pAdapterInfo;
 PIP_ADAPTER_INFO pAdapter;
@@ -464,7 +467,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     switch (message)
     {
     /*
-    * 나중에 단축키 설정
+    //* 나중에 단축키 설정
     case WM_KEYDOWN:
         // 단축키 예: Ctrl + S를 눌렀을 때 특정 버튼 트리거
         if ((GetKeyState(VK_CONTROL) & 0x8000) && wParam == 'S') {
@@ -474,6 +477,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         }
         else if ((GetKeyState(VK_CONTROL) & 0x8000) && wParam == 'E') {
             SendMessage(GetDlgItem(hWnd, IDC_EDIT_BUTTON), BM_CLICK, 0, 0);
+            return 0;
+        }
+        else if ((GetKeyState(VK_RETURN) & 0x8000)) {
+            MessageBox(NULL, L"Enter 키 입력", L"알림", MB_OK);
             return 0;
         }
         break;*/
@@ -716,7 +723,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
         CreateWindowEx(0, L"COMBOBOX", NULL, CBS_DROPDOWN | WS_CHILD | WS_VISIBLE | WS_VSCROLL,
             100, 0, 500, 300, hWnd, (HMENU)IDC_COMBOBOX, GetModuleHandle(NULL), NULL);
-
         getAdapterInfo(hWnd, GetDlgItem(hWnd, IDC_COMBOBOX));
 
         // IP 주소 입력 필드 생성
@@ -801,9 +807,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         
         // 적용 버튼 생성
         CreateWindowEx(0, L"BUTTON", L"Edit", WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON,
-            160, 300, 100, 25, hWnd, (HMENU)IDC_EDIT_BUTTON, NULL, NULL);
+            160, 300, 50, 25, hWnd, (HMENU)IDC_EDIT_BUTTON, NULL, NULL);
         CreateWindowEx(0, L"BUTTON", L"Apply", WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON,
-            230, 300, 100, 25, hWnd, (HMENU)IDC_APPLY_BUTTON, NULL, NULL);
+            230, 300, 50, 25, hWnd, (HMENU)IDC_APPLY_BUTTON, NULL, NULL);
         CreateWindowEx(0, L"BUTTON", L"DHCP Switching", WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON,
             300, 300, 150, 25, hWnd, (HMENU)IDC_DHCHSW_BUTTON, NULL, NULL);
         CreateWindowEx(0, L"BUTTON", L"Refresh", WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON,
