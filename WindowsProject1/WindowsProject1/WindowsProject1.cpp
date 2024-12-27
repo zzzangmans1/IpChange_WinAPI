@@ -5,12 +5,19 @@
 #include "WindowsProject1.h"
 #pragma warning (disable : 4996)
 
+#define NUM_EDIT_CONTROLS 12 // EDIT 컨트롤 개수
 #define MAX_LOADSTRING 100
 
 // 전역 변수:
 HINSTANCE hInst;                                // 현재 인스턴스입니다.
 WCHAR szTitle[MAX_LOADSTRING];                  // 제목 표시줄 텍스트입니다.
 WCHAR szWindowClass[MAX_LOADSTRING];            // 기본 창 클래스 이름입니다.
+
+HWND hFocus = NULL;                             // 포커스 핸들 담을 전역변수
+
+// EDIT 같은 클래스들은 키 차단되어 있기 때문에 프로시저 생성
+WNDPROC OldEditProcs[NUM_EDIT_CONTROLS];                            // 원래 EDIT 컨트롤 프로시저 저장
+HWND hEditControls[NUM_EDIT_CONTROLS];  // EDIT 컨트롤 핸들 배열
 
 PIP_ADAPTER_INFO pAdapterInfo;
 PIP_ADAPTER_INFO pAdapter;
@@ -118,6 +125,43 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
    UpdateWindow(hWnd);
 
    return TRUE;
+}
+
+// 서브클래싱된 프로시저
+LRESULT CALLBACK EditSubclassProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
+    switch (message) {
+    case WM_KEYDOWN:
+        if ((GetKeyState(VK_CONTROL) & 0x8000) && wParam == 'A') {
+            // Ctrl + A 키 입력 확인
+            //MessageBox(NULL, L"Ctrl + A", L"알림", MB_OK);
+            SendMessage(hWnd, EM_SETSEL, 0, -1); // 텍스트 전체 선택
+            return 0; // 메시지 처리 완료
+        }
+        else if ((wParam == VK_RETURN) || (wParam == VK_TAB)) {
+            // Enter 키 처리
+            for (int i = 0; i < NUM_EDIT_CONTROLS; i++) {
+                if (hWnd == hEditControls[i]) {
+                    // 다음 Edit 컨트롤로 포커스 이동
+                    if (i + 1 < NUM_EDIT_CONTROLS) {
+                        SetFocus(hEditControls[i + 1]);
+
+                        SendMessage(hEditControls[i + 1], EM_SETSEL, 0, -1); // 텍스트 전체 선택
+                    }
+                    break;
+                }
+            }
+            return 0; // 메시지 처리 완료
+        }
+        break;
+    }
+    
+    // 원래 프로시저 호출
+    for (int i = 0; i < NUM_EDIT_CONTROLS; i++) {
+        if (hWnd == hEditControls[i]) {
+            return CallWindowProc(OldEditProcs[i], hWnd, message, wParam, lParam);
+        }
+    }
+    return DefWindowProc(hWnd, message, wParam, lParam);
 }
 
 // 변환할 멀티바이트 문자열
@@ -358,6 +402,8 @@ void SetEditReadOnly(HWND hWnd, BOOL isReadOnly) {
     SendMessage(GetDlgItem(hWnd, IDC_GW2), EM_SETREADONLY, isReadOnly, 0);
     SendMessage(GetDlgItem(hWnd, IDC_GW3), EM_SETREADONLY, isReadOnly, 0);
     SendMessage(GetDlgItem(hWnd, IDC_GW4), EM_SETREADONLY, isReadOnly, 0);
+
+    SendMessage(GetDlgItem(hWnd, IDC_REFRESH_BUTTON), EM_SETREADONLY, !isReadOnly, 0);
 }
 
 void SetIpAddress(LPCWSTR adapterName, LPCWSTR ipAddress, LPCWSTR subnetMask, LPCWSTR gateway) {
@@ -417,6 +463,20 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
     switch (message)
     {
+    /*
+    * 나중에 단축키 설정
+    case WM_KEYDOWN:
+        // 단축키 예: Ctrl + S를 눌렀을 때 특정 버튼 트리거
+        if ((GetKeyState(VK_CONTROL) & 0x8000) && wParam == 'S') {
+            //Apply 버튼 
+            SendMessage(GetDlgItem(hWnd, IDC_APPLY_BUTTON), BM_CLICK, 0, 0);
+            return 0; 
+        }
+        else if ((GetKeyState(VK_CONTROL) & 0x8000) && wParam == 'E') {
+            SendMessage(GetDlgItem(hWnd, IDC_EDIT_BUTTON), BM_CLICK, 0, 0);
+            return 0;
+        }
+        break;*/
     case WM_COMMAND:
         {
             int wmId = LOWORD(wParam);
@@ -488,6 +548,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 // ComboBox 다시 활성화
                 HWND hComboBox = GetDlgItem(hWnd, IDC_COMBOBOX);
                 EnableWindow(hComboBox, TRUE);
+                ShowWindow(GetDlgItem(hWnd, IDC_REFRESH_BUTTON), SW_SHOW);   // DHCP 버튼 보여짐
 
                 wchar_t ipAddress[16] = L"";
                 wchar_t subnetMask[16] = L"";
@@ -526,7 +587,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
                 }
 
-                Sleep(5000);
+                //Sleep(5000);
                 // 설정 변경된 것 새로고침
                 // 어댑터 정보 가져오기
                 getAdapterInfo(hWnd, hComboBox);
@@ -534,6 +595,13 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 // 추가 설정 초기화
                 InitializeControls(hWnd);
 
+                // 서브 클래싱 해제
+                for (int i = 0; i < 12; i++) {
+                    if (OldEditProcs[i] != nullptr) {
+                        SetWindowLongPtr(hEditControls[i], GWLP_WNDPROC, (LONG_PTR)OldEditProcs[i]);
+                        OldEditProcs[i] = nullptr;
+                    }
+                }
                 //MessageBox(hWnd, L"APPLY 버튼이 클릭되었습니다!", L"알림", MB_OK);
             }
             if (LOWORD(wParam) == IDC_EDIT_BUTTON) { // 버튼 클릭 이벤트 처리
@@ -544,7 +612,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 // ComboBox 비활성화
                 HWND hComboBox = GetDlgItem(hWnd, IDC_COMBOBOX);
                 EnableWindow(hComboBox, FALSE);
-
+                ShowWindow(GetDlgItem(hWnd, IDC_REFRESH_BUTTON), SW_HIDE);   // DHCP 버튼 숨김
                 // 현재 READONLY 상태 가져오기
                 BOOL isReadOnly = (GetWindowLongPtr(GetDlgItem(hWnd, IDC_IP1), GWL_STYLE) & ES_READONLY) != 0;
 
@@ -556,6 +624,18 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
                     MessageBox(hWnd, L"쓰기 가능 상태로 변경되었습니다.", L"알림", MB_OK);
                 }
+                OldEditProcs[0] = (WNDPROC)SetWindowLongPtr(hEditControls[0], GWLP_WNDPROC, (LONG_PTR)EditSubclassProc);
+                OldEditProcs[1] = (WNDPROC)SetWindowLongPtr(hEditControls[1], GWLP_WNDPROC, (LONG_PTR)EditSubclassProc);
+                OldEditProcs[2] = (WNDPROC)SetWindowLongPtr(hEditControls[2], GWLP_WNDPROC, (LONG_PTR)EditSubclassProc);
+                OldEditProcs[3] = (WNDPROC)SetWindowLongPtr(hEditControls[3], GWLP_WNDPROC, (LONG_PTR)EditSubclassProc);
+                OldEditProcs[4] = (WNDPROC)SetWindowLongPtr(hEditControls[4], GWLP_WNDPROC, (LONG_PTR)EditSubclassProc);
+                OldEditProcs[5] = (WNDPROC)SetWindowLongPtr(hEditControls[5], GWLP_WNDPROC, (LONG_PTR)EditSubclassProc);
+                OldEditProcs[6] = (WNDPROC)SetWindowLongPtr(hEditControls[6], GWLP_WNDPROC, (LONG_PTR)EditSubclassProc);
+                OldEditProcs[7] = (WNDPROC)SetWindowLongPtr(hEditControls[7], GWLP_WNDPROC, (LONG_PTR)EditSubclassProc);
+                OldEditProcs[8] = (WNDPROC)SetWindowLongPtr(hEditControls[8], GWLP_WNDPROC, (LONG_PTR)EditSubclassProc);
+                OldEditProcs[9] = (WNDPROC)SetWindowLongPtr(hEditControls[9], GWLP_WNDPROC, (LONG_PTR)EditSubclassProc);
+                OldEditProcs[10] = (WNDPROC)SetWindowLongPtr(hEditControls[10], GWLP_WNDPROC, (LONG_PTR)EditSubclassProc);
+                OldEditProcs[11] = (WNDPROC)SetWindowLongPtr(hEditControls[11], GWLP_WNDPROC, (LONG_PTR)EditSubclassProc);
             }
             if (LOWORD(wParam) == IDC_DHCHSW_BUTTON) {
 
@@ -577,7 +657,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
                 MessageBox(hWnd, L"DHCP로 설정되었습니다.", L"알림", MB_OK);
 
-                Sleep(5000);
+                //Sleep(5000);
                 // 설정 변경된 것 새로고침
                 getAdapterInfo(hWnd, hComboBox);
 
@@ -617,7 +697,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                     }
                 }
             }
-
+            break;
             // 메뉴 선택을 구문 분석합니다:
             switch (wmId)
             {
@@ -640,17 +720,18 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         getAdapterInfo(hWnd, GetDlgItem(hWnd, IDC_COMBOBOX));
 
         // IP 주소 입력 필드 생성
-        CreateWindowEx(0, L"EDIT", L"", WS_CHILD | WS_VISIBLE | WS_BORDER | ES_NUMBER | ES_READONLY,
-            30, 30, 40, 25, hWnd, (HMENU)IDC_IP1, NULL, NULL);
+
+        hEditControls[0] = CreateWindowEx(0, L"EDIT", L"", WS_CHILD | WS_VISIBLE | WS_BORDER | ES_NUMBER | ES_READONLY,
+            30, 30, 40, 25, hWnd, (HMENU)IDC_IP1, (HINSTANCE)GetWindowLongPtr(hWnd, GWLP_HINSTANCE), NULL);
         SendMessage(GetDlgItem(hWnd, IDC_IP1), EM_SETLIMITTEXT, 3, 0);
-        CreateWindowEx(0, L"EDIT", L"", WS_CHILD | WS_VISIBLE | WS_BORDER | ES_NUMBER | ES_READONLY,
-            80, 30, 40, 25, hWnd, (HMENU)IDC_IP2, NULL, NULL);
+        hEditControls[1] = CreateWindowEx(0, L"EDIT", L"", WS_CHILD | WS_VISIBLE | WS_BORDER | ES_NUMBER | ES_READONLY,
+            80, 30, 40, 25, hWnd, (HMENU)IDC_IP2, (HINSTANCE)GetWindowLongPtr(hWnd, GWLP_HINSTANCE), NULL);
         SendMessage(GetDlgItem(hWnd, IDC_IP2), EM_SETLIMITTEXT, 3, 0);
-        CreateWindowEx(0, L"EDIT", L"", WS_CHILD | WS_VISIBLE | WS_BORDER | ES_NUMBER | ES_READONLY,
-            130, 30, 40, 25, hWnd, (HMENU)IDC_IP3, NULL, NULL);
+        hEditControls[2] = CreateWindowEx(0, L"EDIT", L"", WS_CHILD | WS_VISIBLE | WS_BORDER | ES_NUMBER | ES_READONLY,
+            130, 30, 40, 25, hWnd, (HMENU)IDC_IP3, (HINSTANCE)GetWindowLongPtr(hWnd, GWLP_HINSTANCE), NULL);
         SendMessage(GetDlgItem(hWnd, IDC_IP3), EM_SETLIMITTEXT, 3, 0);
-        CreateWindowEx(0, L"EDIT", L"", WS_CHILD | WS_VISIBLE | WS_BORDER | ES_NUMBER | ES_READONLY,
-            180, 30, 40, 25, hWnd, (HMENU)IDC_IP4, NULL, NULL);
+        hEditControls[3] = CreateWindowEx(0, L"EDIT", L"", WS_CHILD | WS_VISIBLE | WS_BORDER | ES_NUMBER | ES_READONLY,
+            180, 30, 40, 25, hWnd, (HMENU)IDC_IP4, (HINSTANCE)GetWindowLongPtr(hWnd, GWLP_HINSTANCE), NULL);
         SendMessage(GetDlgItem(hWnd, IDC_IP4), EM_SETLIMITTEXT, 3, 0);
         CreateWindowEx(
             0, L"STATIC", L"Current IP",
@@ -661,17 +742,17 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
 
         // 서브넷 마스크 입력 필드 생성
-        CreateWindowEx(0, L"EDIT", L"", WS_CHILD | WS_VISIBLE | WS_BORDER | ES_NUMBER | ES_READONLY,
-            30, 60, 40, 25, hWnd, (HMENU)IDC_SUBNET1, NULL, NULL);
+        hEditControls[4] = CreateWindowEx(0, L"EDIT", L"", WS_CHILD | WS_VISIBLE | WS_BORDER | ES_NUMBER | ES_READONLY,
+            30, 60, 40, 25, hWnd, (HMENU)IDC_SUBNET1, (HINSTANCE)GetWindowLongPtr(hWnd, GWLP_HINSTANCE), NULL);
         SendMessage(GetDlgItem(hWnd, IDC_SUBNET1), EM_SETLIMITTEXT, 3, 0);
-        CreateWindowEx(0, L"EDIT", L"", WS_CHILD | WS_VISIBLE | WS_BORDER | ES_NUMBER | ES_READONLY,
-            80, 60, 40, 25, hWnd, (HMENU)IDC_SUBNET2, NULL, NULL);
+        hEditControls[5] = CreateWindowEx(0, L"EDIT", L"", WS_CHILD | WS_VISIBLE | WS_BORDER | ES_NUMBER | ES_READONLY,
+            80, 60, 40, 25, hWnd, (HMENU)IDC_SUBNET2, (HINSTANCE)GetWindowLongPtr(hWnd, GWLP_HINSTANCE), NULL);
         SendMessage(GetDlgItem(hWnd, IDC_SUBNET2), EM_SETLIMITTEXT, 3, 0);
-        CreateWindowEx(0, L"EDIT", L"", WS_CHILD | WS_VISIBLE | WS_BORDER | ES_NUMBER | ES_READONLY,
-            130, 60, 40, 25, hWnd, (HMENU)IDC_SUBNET3, NULL, NULL);
+        hEditControls[6] = CreateWindowEx(0, L"EDIT", L"", WS_CHILD | WS_VISIBLE | WS_BORDER | ES_NUMBER | ES_READONLY,
+            130, 60, 40, 25, hWnd, (HMENU)IDC_SUBNET3, (HINSTANCE)GetWindowLongPtr(hWnd, GWLP_HINSTANCE), NULL);
         SendMessage(GetDlgItem(hWnd, IDC_SUBNET3), EM_SETLIMITTEXT, 3, 0);
-        CreateWindowEx(0, L"EDIT", L"", WS_CHILD | WS_VISIBLE | WS_BORDER | ES_NUMBER | ES_READONLY,
-            180, 60, 40, 25, hWnd, (HMENU)IDC_SUBNET4, NULL, NULL);
+        hEditControls[7] = CreateWindowEx(0, L"EDIT", L"", WS_CHILD | WS_VISIBLE | WS_BORDER | ES_NUMBER | ES_READONLY,
+            180, 60, 40, 25, hWnd, (HMENU)IDC_SUBNET4, (HINSTANCE)GetWindowLongPtr(hWnd, GWLP_HINSTANCE), NULL);
         SendMessage(GetDlgItem(hWnd, IDC_SUBNET4), EM_SETLIMITTEXT, 3, 0);
         CreateWindowEx(
             0, L"STATIC", L"Current SUBNET MAST",
@@ -681,17 +762,17 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         );
 
         // 게이트웨이 입력 필드 생성
-        CreateWindowEx(0, L"EDIT", L"", WS_CHILD | WS_VISIBLE | WS_BORDER | ES_NUMBER | ES_READONLY,
-            30, 90, 40, 20, hWnd, (HMENU)IDC_GW1, NULL, NULL);
+        hEditControls[8] = CreateWindowEx(0, L"EDIT", L"", WS_CHILD | WS_VISIBLE | WS_BORDER | ES_NUMBER | ES_READONLY,
+            30, 90, 40, 20, hWnd, (HMENU)IDC_GW1, (HINSTANCE)GetWindowLongPtr(hWnd, GWLP_HINSTANCE), NULL);
         SendMessage(GetDlgItem(hWnd, IDC_GW1), EM_SETLIMITTEXT, 3, 0);
-        CreateWindowEx(0, L"EDIT", L"", WS_CHILD | WS_VISIBLE | WS_BORDER | ES_NUMBER | ES_READONLY,
-            80, 90, 40, 20, hWnd, (HMENU)IDC_GW2, NULL, NULL);
+        hEditControls[9] = CreateWindowEx(0, L"EDIT", L"", WS_CHILD | WS_VISIBLE | WS_BORDER | ES_NUMBER | ES_READONLY,
+            80, 90, 40, 20, hWnd, (HMENU)IDC_GW2, (HINSTANCE)GetWindowLongPtr(hWnd, GWLP_HINSTANCE), NULL);
         SendMessage(GetDlgItem(hWnd, IDC_GW2), EM_SETLIMITTEXT, 3, 0);
-        CreateWindowEx(0, L"EDIT", L"", WS_CHILD | WS_VISIBLE | WS_BORDER | ES_NUMBER | ES_READONLY,
-            130, 90, 40, 20, hWnd, (HMENU)IDC_GW3, NULL, NULL);
+        hEditControls[10] = CreateWindowEx(0, L"EDIT", L"", WS_CHILD | WS_VISIBLE | WS_BORDER | ES_NUMBER | ES_READONLY,
+            130, 90, 40, 20, hWnd, (HMENU)IDC_GW3, (HINSTANCE)GetWindowLongPtr(hWnd, GWLP_HINSTANCE), NULL);
         SendMessage(GetDlgItem(hWnd, IDC_GW3), EM_SETLIMITTEXT, 3, 0);
-        CreateWindowEx(0, L"EDIT", L"", WS_CHILD | WS_VISIBLE | WS_BORDER | ES_NUMBER | ES_READONLY,
-            180, 90, 40, 20, hWnd, (HMENU)IDC_GW4, NULL, NULL);
+        hEditControls[11] = CreateWindowEx(0, L"EDIT", L"", WS_CHILD | WS_VISIBLE | WS_BORDER | ES_NUMBER | ES_READONLY,
+            180, 90, 40, 20, hWnd, (HMENU)IDC_GW4, (HINSTANCE)GetWindowLongPtr(hWnd, GWLP_HINSTANCE), NULL);
         SendMessage(GetDlgItem(hWnd, IDC_GW4), EM_SETLIMITTEXT, 3, 0);
         CreateWindowEx(
             0, L"STATIC", L"Current GATEWAY",
@@ -720,9 +801,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         
         // 적용 버튼 생성
         CreateWindowEx(0, L"BUTTON", L"Edit", WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON,
-            160, 300, 50, 25, hWnd, (HMENU)IDC_EDIT_BUTTON, NULL, NULL);
+            160, 300, 100, 25, hWnd, (HMENU)IDC_EDIT_BUTTON, NULL, NULL);
         CreateWindowEx(0, L"BUTTON", L"Apply", WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON,
-            230, 300, 50, 25, hWnd, (HMENU)IDC_APPLY_BUTTON, NULL, NULL);
+            230, 300, 100, 25, hWnd, (HMENU)IDC_APPLY_BUTTON, NULL, NULL);
         CreateWindowEx(0, L"BUTTON", L"DHCP Switching", WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON,
             300, 300, 150, 25, hWnd, (HMENU)IDC_DHCHSW_BUTTON, NULL, NULL);
         CreateWindowEx(0, L"BUTTON", L"Refresh", WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON,
@@ -730,6 +811,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         ShowWindow(GetDlgItem(hWnd, IDC_DHCHSW_BUTTON), SW_HIDE);   // DHCP 버튼 숨김
         break;
     }
+
     case WM_PAINT:
         {
             PAINTSTRUCT ps;
@@ -739,7 +821,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             TextOut(hdc, 100, 0, _T("현재 적용된 IP"), 9);
             EndPaint(hWnd, &ps);
         }
-        break;
+        break; 
     case WM_DESTROY:
         PostQuitMessage(0);
         break;
